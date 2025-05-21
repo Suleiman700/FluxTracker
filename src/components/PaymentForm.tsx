@@ -62,46 +62,49 @@ interface PaymentFormProps {
   onSubmit: (data: Omit<Payment, 'id' | 'paidInstallments' | 'paid'>) => Promise<void>;
   initialData?: Payment;
   categories: Category[];
+  currentDashboardDate?: Date; // To set default date for new payments
 }
 
-export function PaymentForm({ isOpen, onClose, onSubmit, initialData, categories }: PaymentFormProps) {
+export function PaymentForm({ isOpen, onClose, onSubmit, initialData, categories, currentDashboardDate }: PaymentFormProps) {
   const form = useForm<PaymentFormData>({
     resolver: zodResolver(paymentSchema),
     defaultValues: {
       name: "",
       amount: 0,
       description: "",
-      date: new Date(),
+      date: currentDashboardDate || new Date(), // Initial default
       isRecurring: false,
       categoryId: undefined,
     },
   });
 
   useEffect(() => {
-    if (initialData) {
-      form.reset({
-        name: initialData.name,
-        amount: initialData.amount,
-        description: initialData.description || "",
-        date: parseISO(initialData.date),
-        isRecurring: initialData.isRecurring,
-        recurrenceFrequency: initialData.recurrence?.frequency,
-        recurrenceInstallments: initialData.recurrence?.installments,
-        categoryId: initialData.categoryId,
-      });
-    } else {
-      form.reset({
-        name: "",
-        amount: 0,
-        description: "",
-        date: new Date(),
-        isRecurring: false,
-        recurrenceFrequency: "monthly",
-        recurrenceInstallments: undefined,
-        categoryId: undefined,
-      });
+    if (isOpen) { // Only reset when dialog opens or initialData/currentDashboardDate changes while open
+      if (initialData) {
+        form.reset({
+          name: initialData.name,
+          amount: initialData.amount,
+          description: initialData.description || "",
+          date: parseISO(initialData.date),
+          isRecurring: initialData.isRecurring,
+          recurrenceFrequency: initialData.recurrence?.frequency,
+          recurrenceInstallments: initialData.recurrence?.installments,
+          categoryId: initialData.categoryId,
+        });
+      } else {
+        form.reset({
+          name: "",
+          amount: 0,
+          description: "",
+          date: currentDashboardDate || new Date(), // Default to current viewed month or today
+          isRecurring: false,
+          recurrenceFrequency: "monthly",
+          recurrenceInstallments: undefined,
+          categoryId: undefined,
+        });
+      }
     }
-  }, [initialData, form, isOpen]);
+  }, [initialData, form, isOpen, currentDashboardDate]);
 
 
   const isRecurring = form.watch("isRecurring");
@@ -122,7 +125,6 @@ export function PaymentForm({ isOpen, onClose, onSubmit, initialData, categories
       }),
     };
     await onSubmit(paymentData);
-    // onClose(); // Moved to FluxTrackerDashboard to ensure it closes after successful submission/appData update
   };
 
   return (
@@ -197,6 +199,7 @@ export function PaymentForm({ isOpen, onClose, onSubmit, initialData, categories
                             date < new Date("1900-01-01")
                           }
                           initialFocus
+                          defaultMonth={field.value} // Ensures calendar opens to selected month
                         />
                       </PopoverContent>
                     </Popover>
@@ -269,7 +272,7 @@ export function PaymentForm({ isOpen, onClose, onSubmit, initialData, categories
                   <FormField
                     control={form.control}
                     name="recurrenceFrequency"
-                    render={({ field }) => ( /* field is unused for now, but kept for potential future changes */ (
+                    render={({ field }) => ( (
                       <FormItem>
                         <FormLabel>Frequency</FormLabel>
                         <Input value="Monthly" disabled readOnly />

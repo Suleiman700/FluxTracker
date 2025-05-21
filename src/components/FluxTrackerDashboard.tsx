@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, FileJson, Loader2, AlertTriangle, Tag, CalendarRange } from "lucide-react";
+import { PlusCircle, FileJson, Loader2, AlertTriangle, Tag, CalendarRange, List, LayoutGrid } from "lucide-react";
 import { MonthNavigator } from "./MonthNavigator";
 import { SalaryInput } from "./SalaryInput";
 import { FinancialSummary } from "./FinancialSummary";
@@ -13,7 +13,9 @@ import { PaymentForm } from "./PaymentForm";
 import { BudgetTips } from "./BudgetTips";
 import { CategoryManagerDialog } from "./CategoryManagerDialog";
 import { MultiMonthViewDialog } from "./MultiMonthViewDialog";
-import { SpendingByCategoryChart } from "./SpendingByCategoryChart"; // Added import
+// import { SpendingByCategoryChart } from "./SpendingByCategoryChart"; // Hidden as per request
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import type { AppData, Payment, DisplayPayment, Category } from "@/lib/types";
 import { 
   getAppData, 
@@ -30,6 +32,8 @@ import { getPaymentsForMonth } from "@/lib/paymentUtils";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
+export type PaymentViewMode = "cards" | "table";
+
 export function FluxTrackerDashboard() {
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [appData, setAppData] = useState<AppData | null>(null);
@@ -39,6 +43,7 @@ export function FluxTrackerDashboard() {
   const [editingPayment, setEditingPayment] = useState<DisplayPayment | undefined>(undefined);
   const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false);
   const [isMultiMonthViewOpen, setIsMultiMonthViewOpen] = useState(false);
+  const [paymentViewMode, setPaymentViewMode] = useState<PaymentViewMode>("table"); // Default to table view
   const { toast } = useToast();
 
   const fetchAppData = useCallback(async () => {
@@ -92,7 +97,7 @@ export function FluxTrackerDashboard() {
         const paymentToUpdate = appData?.payments.find(p => p.id === editingPayment.id);
         if (!paymentToUpdate) throw new Error("Original payment not found for editing.");
         
-        updatedData = await updatePayment(editingPayment.id, paymentData); // Pass paymentData directly
+        updatedData = await updatePayment(editingPayment.id, paymentData); 
         toast({ title: "Payment Updated", description: `${paymentData.name} has been successfully updated.` });
       } else {
         updatedData = await addPayment(paymentData);
@@ -203,7 +208,7 @@ export function FluxTrackerDashboard() {
           <CardHeader>
             <CardTitle className="text-xl text-primary">Settings & Insights</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4"> {/* Reduced space-y-6 to space-y-4 */}
+          <CardContent className="space-y-4">
             <SalaryInput 
               salaryForCurrentMonth={salaryForCurrentMonth} 
               currentMonthYear={currentMonthYear}
@@ -226,12 +231,29 @@ export function FluxTrackerDashboard() {
         <div className="lg:col-span-2 space-y-6">
           <FinancialSummary salary={salaryForCurrentMonth} paymentsForMonth={paymentsForCurrentMonth} />
           
-          {/*<SpendingByCategoryChart */}
-          {/*  paymentsForMonth={paymentsForCurrentMonth}*/}
-          {/*  categories={appData.categories || []}*/}
-          {/*/>*/}
+          {/* 
+          <SpendingByCategoryChart 
+            paymentsForMonth={paymentsForCurrentMonth}
+            categories={appData.categories || []}
+          /> 
+          */}
 
-          <div className="flex justify-end">
+          <div className="flex justify-between items-center gap-2">
+            <div className="flex items-center gap-2">
+                <Label htmlFor="paymentViewMode" className="text-sm text-muted-foreground whitespace-nowrap">View as:</Label>
+                <Select
+                  value={paymentViewMode}
+                  onValueChange={(value) => setPaymentViewMode(value as PaymentViewMode)}
+                >
+                  <SelectTrigger id="paymentViewMode" className="w-[130px] h-9">
+                    <SelectValue placeholder="Select view" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cards"><LayoutGrid className="mr-2 h-4 w-4 inline-block"/>Cards</SelectItem>
+                    <SelectItem value="table"><List className="mr-2 h-4 w-4 inline-block"/>Table</SelectItem>
+                  </SelectContent>
+                </Select>
+            </div>
             <Button onClick={openAddPaymentForm} className="bg-accent hover:bg-accent/90 text-accent-foreground">
               <PlusCircle className="mr-2 h-5 w-5" /> Add New Payment
             </Button>
@@ -239,6 +261,7 @@ export function FluxTrackerDashboard() {
 
           <PaymentList 
             paymentsForMonth={paymentsForCurrentMonth} 
+            viewMode={paymentViewMode}
             onEditPayment={handleEditPayment}
             onTogglePaid={handleTogglePaid}
             onDeletePayment={handleDeletePayment}
@@ -252,6 +275,7 @@ export function FluxTrackerDashboard() {
         onSubmit={handlePaymentFormSubmit}
         initialData={editingPayment ? appData.payments.find(p => p.id === editingPayment.id) : undefined}
         categories={appData.categories || []}
+        currentDashboardDate={currentDate} 
       />
       <CategoryManagerDialog
         isOpen={isCategoryManagerOpen}
@@ -270,4 +294,3 @@ export function FluxTrackerDashboard() {
     </div>
   );
 }
-
